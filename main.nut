@@ -32,7 +32,7 @@ local CEvent = class
     function priority(_priority)                     
     { 
         i_priority = _priority; 
-        refreshEvents();
+        _ExtendedEventHandler.EVTMANAGER.refreshEvents();
         return this;
     }
 
@@ -126,17 +126,18 @@ getEventsByName = function(_name, _func)
 
 callerEvent = function(...)
 {
+    vargv.insert(0, null);
     for (local i = 0; i < a_events.len(); i++)
     {
         if (a_events[i]._getName() == name)
         {
             if (a_events[i]._getContext() == null && a_events[i]._getDelete())
             {
-                deleteEvent(a_events[i]);
+                CEventManager.deleteEvent(a_events[i]);
                 continue;
             }
 
-            vargv.insert(0, a_events[i].r_env);
+            vargv[0] = a_events[i]._getContext();
             local result = a_events[i].r_function.acall(vargv);
 
             if(result == false)
