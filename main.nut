@@ -32,7 +32,7 @@ local CEvent = class
     function priority(_priority)                     
     { 
         i_priority = _priority; 
-        _ExtendedEventHandler.EVTMANAGER.refreshEvents();
+        refreshEvents();
         return this;
     }
 
@@ -133,7 +133,7 @@ callerEvent = function(...)
         {
             if (a_events[i]._getContext() == null && a_events[i]._getDelete())
             {
-                CEventManager.deleteEvent(a_events[i]);
+                deleteEvent(a_events[i]);
                 continue;
             }
 
