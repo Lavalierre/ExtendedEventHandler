@@ -1,7 +1,6 @@
 
 local __addEventHandler             = addEventHandler;
 local __removeEventHander           = removeEventHandler;
-local isCallerEventExists, refreshEvents, registerEvent, registerCallerEvent, unregisterEvent, deleteEvent, getEventsByName, callerEvent;
 
 local a_events                      = [];
 local a_callerEvents                = [];
@@ -32,7 +31,7 @@ local CEvent = class
     function priority(_priority)                     
     { 
         i_priority = _priority; 
-        refreshEvents();
+        a_events.sort(@(a,b) a._getPriority() <=> b._getPriority());
         return this;
     }
 
@@ -45,31 +44,7 @@ local CEvent = class
 
 // *** //
 
-registerEvent = function(_name, _ref, _priority)
-{
-    local newEvent = CEvent(_name, _ref, _priority);
-    a_events.push(newEvent);
-
-    registerCallerEvent(_name);
-    refreshEvents();
-
-    return newEvent;
-}
-
-registerCallerEvent = function(_name)
-{
-    if (!isCallerEventExists(_name))
-    {
-        local newCallerEvent = {};
-        newCallerEvent.name <- _name;
-        newCallerEvent.func <- callerEvent.bindenv(newCallerEvent);
-        a_callerEvents.append(newCallerEvent);
-            
-        __addEventHandler(_name, newCallerEvent.func);
-    }
-}
-
-isCallerEventExists = function(_name)
+local function isCallerEventExists(_name)
 {
     for (local i = 0; i < a_callerEvents.len(); i++)
     {
@@ -80,38 +55,7 @@ isCallerEventExists = function(_name)
     return false;
 }
 
-refreshEvents = function()
-{
-    a_events.sort(@(a,b) a._getPriority() <=> b._getPriority());
-}
-
-unregisterEvent = function(_name, _ref)
-{
-    local evt = getEventsByName(_name, _ref);
-    if (evt.len() != 0)
-    {
-        for (local i = evt.len() - 1; i != -1; i--)
-            a_events.remove(evt[i]);
-            
-        return true;
-    }
-
-    return false;
-}
-
-deleteEvent = function(evt)
-{
-    local idx = a_events.find(evt);
-    if (idx != null)
-    {
-        a_events.remove(idx);
-        return true;
-    }
-
-    return false;
-}
-
-getEventsByName = function(_name, _func)
+local function getEvents(_name, _func)
 {
     local returnArr = [];
 
@@ -124,28 +68,91 @@ getEventsByName = function(_name, _func)
     return returnArr;
 }
 
-callerEvent = function(...)
+local function unregisterEvent(_name, _ref)
 {
-    vargv.insert(0, null);
+    local evt = getEvents(_name, _ref);
+    if (evt.len() != 0)
+    {
+        for (local i = evt.len() - 1; i != -1; i--)
+            a_events.remove(evt[i]);
+            
+        return true;
+    }
+
+    return false;
+}
+
+local function deleteEvent(evt)
+{
+    local idx = a_events.find(evt);
+    if (idx != null)
+    {
+        a_events.remove(idx);
+        return true;
+    }
+
+    return false;
+}
+
+local function getEventsByName(_name)
+{
+    local returnArr = [];
+
     for (local i = 0; i < a_events.len(); i++)
     {
-        if (a_events[i]._getName() == name)
-        {
-            if (a_events[i]._getContext() == null && a_events[i]._getDelete())
-            {
-                deleteEvent(a_events[i]);
-                continue;
-            }
+        if (a_events[i]._getName() == _name)
+            returnArr.append(a_events[i]);
+    }
 
-            vargv[0] = a_events[i]._getContext();
-            local result = a_events[i].r_function.acall(vargv);
+    return returnArr;
+}
+
+local function callerEvent(...)
+{
+    vargv.insert(0, null);
+
+    local a_evt = getEventsByName(name);
+
+    for (local i = 0; i < a_evt.len(); i++)
+    {
+        if (a_evt[i]._getContext() == null && a_evt[i]._getDelete())
+        {
+            deleteEvent(a_evt[i]);
+            continue;
+        }
+
+        vargv[0] = a_evt[i]._getContext();
+        local result = a_evt[i].r_function.acall(vargv);
 
             if(result == false)
                 cancelEvent();
             else if (typeof result == "integer")
                 eventValue(result);
-        }
     }
+}
+
+local function registerCallerEvent(_name)
+{
+    if (!isCallerEventExists(_name))
+    {
+        local newCallerEvent = {};
+        newCallerEvent.name <- _name;
+        newCallerEvent.func <- callerEvent.bindenv(newCallerEvent);
+        a_callerEvents.append(newCallerEvent);
+            
+        __addEventHandler(_name, newCallerEvent.func);
+    }
+}
+
+local function registerEvent(_name, _ref, _priority)
+{
+    local newEvent = CEvent(_name, _ref, _priority);
+    a_events.push(newEvent);
+    a_events.sort(@(a,b) a._getPriority() <=> b._getPriority());
+
+    registerCallerEvent(_name);
+
+    return newEvent;
 }
 
 // *** DEFAULT G2O FUNCTIONS *** //
